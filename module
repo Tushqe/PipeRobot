@@ -1,0 +1,295 @@
+​​module pipeFSM( 
+
+​    input clk, 
+
+​    input wire [1:0] onoff, 
+
+​    input wire [7:0] strt_lcn, 
+
+​    input wire [3:0] mtn_sensor, 
+
+​    input wire [3:0] cmps, 
+
+​    input wire [3:0] wll, 
+
+​    output reg [1:0] turn, 
+
+​    output reg [3:0] facing_dir, 
+
+​    output reg driving, 
+
+​    output reg [7:0] location, 
+
+​    output reg [2:0] action, 
+
+​    output reg [4:0] state 
+
+​); 
+
+​ 
+
+​reg [4:0] next; 
+
+​ 
+
+​parameter Off = 0; 
+
+​parameter Idle = 1;   
+
+​parameter Turn_Left = 2; 
+
+​parameter Turn_Right = 3; 
+
+​parameter Comp_Lshift = 4; 
+
+​parameter Comp_pass = 5; 
+
+​parameter Comp_Rshift = 6; 
+
+​parameter Move = 7; 
+
+​parameter Hot0 = 8; 
+
+​parameter Hot1 = 9; 
+
+​parameter Hot2 = 10; 
+
+​parameter Plg0 = 11; 
+
+​parameter Plg1 = 12; 
+
+​parameter Plg2 = 13; 
+
+​parameter Plg3 = 14; 
+
+​parameter Fzn0 = 15; 
+
+​parameter Fzn1 = 16; 
+
+​parameter Fzn2 = 17; 
+
+​parameter Fzn3 = 18; 
+
+​parameter Fzn4 = 19; 
+
+​ 
+
+​initial begin 
+
+​    state = Off; 
+
+​    facing_dir = 4'b1000; 
+
+​    driving = 0; // Initialize driving signal 
+
+​    turn = 2'b00; // Initialize turn signal 
+
+​end 
+
+​ 
+
+​always @(posedge clk) 
+
+​    state = next; 
+
+​ 
+
+​always @(posedge clk, state, onoff, strt_lcn, mtn_sensor, cmps, wll) begin 
+
+​    // Reset signals on state transitions 
+
+​     
+
+​    driving = 0; 
+
+​     
+
+​    case (state) 
+
+​        Off: begin 
+
+​            if(onoff == 2'b01) next = Idle; 
+
+​            else next = Off; 
+
+​        end 
+
+​        Idle: begin 
+
+​            location = strt_lcn; 
+
+​            action = 3'b000; 
+
+​            if (onoff == 2'b01 && wll == 3'b011) next = Turn_Left; 
+
+​            else if (onoff == 2'b01 && wll == 3'b101) next = Turn_Right; 
+
+​            else if (onoff == 2'b0 && wll == 3'b110) next = Comp_pass; 
+
+​            else if (onoff == 2'b0 && wll == 3'b000) next = Idle; 
+
+​        end 
+
+​        Turn_Left: begin 
+
+​            turn = 2'b10; 
+
+​            next = Comp_Lshift; 
+
+​        end  
+
+​        Turn_Right: begin 
+
+​            turn = 2'b01; 
+
+​            next = Comp_Rshift; 
+
+​        end 
+
+​        Comp_Lshift: begin 
+
+​            turn = 2'b00; 
+
+​            facing_dir = cmps << 1; 
+
+​            next = Move; 
+
+​        end 
+
+​        Comp_pass: begin 
+
+​            facing_dir = cmps; 
+
+​            next = Move; 
+
+​        end 
+
+​        Comp_Rshift: begin 
+
+​            turn = 2'b00; 
+
+​            facing_dir = cmps >> 1; 
+
+​            next = Move; 
+
+​        end 
+
+​        Move: begin 
+
+​            driving = 1;  
+
+​            location = location + facing_dir; 
+
+​            if (mtn_sensor == 4'b1000) next = Fzn0;  
+
+​            else if (mtn_sensor == 4'b0100) next = Hot0;  
+
+​            else if (mtn_sensor == 4'b0010) next = Plg0;  
+
+​            else if (mtn_sensor == 4'b0001) next = Idle; 
+
+​        end 
+
+​        Fzn0: begin 
+
+​            action = 3'b100; 
+
+​            next = Fzn1; 
+
+​        end 
+
+​        Fzn1: begin 
+
+​            action = 3'b100; 
+
+​            next = Fzn2; 
+
+​        end 
+
+​        Fzn2: begin 
+
+​            action = 3'b000; 
+
+​            next = Fzn3; 
+
+​        end 
+
+​        Fzn3: begin 
+
+​            action = 3'b100; 
+
+​            next = Fzn4; 
+
+​        end 
+
+​        Fzn4: begin 
+
+​            action = 3'b100; 
+
+​            next = Idle; 
+
+​        end 
+
+​        Plg0: begin 
+
+​            action = 3'b001; 
+
+​            next = Plg1; 
+
+​        end 
+
+​        Plg1: begin 
+
+​            action = 3'b000; 
+
+​            next = Plg2; 
+
+​        end 
+
+​        Plg2: begin 
+
+​            action = 3'b001; 
+
+​            next = Plg3; 
+
+​        end 
+
+​        Plg3: begin 
+
+​            action = 3'b001; 
+
+​            next = Idle; 
+
+​        end 
+
+​        Hot0: begin 
+
+​            action = 3'b010; 
+
+​            next = Hot1; 
+
+​        end 
+
+​        Hot1: begin 
+
+​            action = 3'b010; 
+
+​            next = Hot2; 
+
+​        end 
+
+​        Hot2: begin 
+
+​            action = 3'b010; 
+
+​            next = Idle; 
+
+​        end 
+
+​    endcase 
+
+​end 
+
+​ 
+
+​endmodule​ 
